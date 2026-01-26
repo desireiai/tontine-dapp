@@ -52,8 +52,8 @@ contract TontineManager {
         uint256 amount = address(this).balance;
         hasBenefited[beneficiary] = true;
 
-        payable(beneficiary).transfer(amount);
-        emit BeneficiaryPaid(beneficiary, amount);
+        (bool success, ) = payable(beneficiary).call{value: amount}("");
+        require(success, "Echec du transfert");
 
         _shiftMembers();
     }
