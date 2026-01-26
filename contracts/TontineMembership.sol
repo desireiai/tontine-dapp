@@ -15,12 +15,11 @@ contract TontineMembership is ERC721, ERC721URIStorage, AccessControl {
         string name;
         uint256 montantCotisation; //c'est le value car c'est la valeur financiere de l'adhesion a la tontine
         address avaliseur;
-        string typecontrat; //carte de membre
         uint256 caution; //caution pour garantir l'engagement du membre selon le pack choisi
-        address memberAddress;
         uint256 createdAt;              // Timestamp de création
         uint256 lastTransferAt;         // Timestamp du dernier transfert
-        string  status; // actif, inactif, suspendu
+        MemberStatus status; // actif, inactif, suspendu
+        MemberLevel level; //niveau du membre: standard, premium, VIP
         string  ipfsHash; // Hash IPFS des documents du membre
         address[] previousOwners;       // Liste des anciens propriétaires
         uint256 penaltiesAccumulated;   // Pénalités accumulées
@@ -37,17 +36,52 @@ contract TontineMembership is ERC721, ERC721URIStorage, AccessControl {
     
     // Limite d'avalisation par membre
     uint8 public constant MAX_AVALISATION_PER_MEMBER = 3;
+
+    //liste des enums pour le statut des membres
+    enum MemberLevel { STANDARD, PREMIUM, VIP }
+    enum MemberStatus { ACTIVE, BENEFITED, SUSPENDED, EXCLUDED }
+
+    //les events pour suivre les actions importantes
+    event MemberCreated(
+        uint256 indexed tokenId,
+        address indexed member,
+        address indexed avaliseur,
+        string name,
+        MemberLevel level
+    );
+    
+    event MemberStatusChanged(
+        uint256 indexed tokenId,
+        MemberStatus oldStatus,
+        MemberStatus newStatus
+    );
+    
+    event PositionUpdated(
+        uint256 indexed tokenId,
+        uint256 oldPosition,
+        uint256 newPosition
+    );
+    
+    event MetadataUpdated(
+        uint256 indexed tokenId,
+        string newIpfsHash
+    );
+
     // ============ MODIFICATEURS ============
-    //verifier que le token existe bien sur la blockchain
-    modifier onlyvalidMember(uint256 tokenId) {
-        require(_exists(tokenId), "Token ID does not exist");
-        _;
-    }
-    //verifier que le membre est actif et quil n'est pas suspendu ou inactif
-    modifier onlyActiveMember(uint256 tokenId) {
-        require(members[tokenId].status == MemberStatus.ACTIVE, "Membre non actif");
-        _;
-    }
+// 1. Vérifier l'existence (Version compatible 2024+)
+modifier onlyValidMember(uint256 tokenId) {
+    // _ownerOf renvoie l'adresse du proprio ou 0 si le token n'existe pas
+    require(_ownerOf(tokenId) != address(0), "Ce membre n'existe pas");
+    _;
+}
+
+// 2. Vérifier le statut (Dépend du premier !)
+modifier onlyActiveMember(uint256 tokenId) {
+    // On vérifie d'abord s'il existe pour éviter de lire une structure vide
+    require(_ownerOf(tokenId) != address(0), "Token inexistant");
+    require(members[tokenId].status == MemberStatus.ACTIVE, "Action impossible : membre non actif");
+    _;
+}
 
     constructor() ERC721("TontineMembership", "TONTINE") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -56,11 +90,51 @@ contract TontineMembership is ERC721, ERC721URIStorage, AccessControl {
     }
  
     //fonction pour mint un nouveau NFT d'adhesion a la tontine
-    function mintMembership(address to, string memory uri) public onlyRole(PRESIDENT_ROLE) {
-        uint256 tokenId = _tokenIdCounter;
+    function mintMembership(address to,
+     string memory name,
+     address avaliseur,
+     uint256 montantCotisation,
+     MemberLevel level,
+     uint256 caution,
+     string memory ipfsHash,
+     string memory uri
+     )
+     public onlyRole(PRESIDENT_ROLE) {
+         require(to != address(0), "Adresse invalide");
+        require(avaliseur != address(0), "Avaliseur requis");
+        require(avaliseur != to, "Auto-avalisation interdite");
+        require(
+            avalisationCount[avaliseur] < MAX_AVALISATION_PER_MEMBER,
+            "Limite d'avalisation atteinte"
+        );
+        require(
+            memberTokens[to].length < MAX_PARTS_PER_MEMBER,
+            "Limite de parts atteinte"
+        );               
+         uint256 tokenId = _tokenIdCounter;
         _tokenIdCounter += 1;
         _safeMint(to, tokenId);
+        Memberinfo memory newMember = Memberinfo({
+            name: name,
+            montantCotisation: montantCotisation,
+            avaliseur: avaliseur,
+            caution: caution,
+            level: level,
+            createdAt: block.timestamp,
+            lastTransferAt: block.timestamp,
+            status: MemberStatus.ACTIVE,
+            ipfsHash: ipfsHash,
+            previousOwners: new address[](0),
+            penaltiesAccumulated: 0,
+            partsCount: uint8(memberTokens[to].length + 1),
+            uri: uri
+        });      
+        members[tokenId] = newMember;
         _setTokenURI(tokenId, uri);
+        memberTokens[to].push(tokenId);
+        avalisationCount[avaliseur] += 1;
+        avalisedMembers[avaliseur].push(to);
+        emit MemberCreated(tokenId, to, avaliseur, name, level);
     }
 
     //les fonctions suivantes sont overrides requises par Solidity
@@ -76,4 +150,14 @@ contract TontineMembership is ERC721, ERC721URIStorage, AccessControl {
     {
         return super.tokenURI(tokenId);
     }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721URIStorage, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
 }
+
