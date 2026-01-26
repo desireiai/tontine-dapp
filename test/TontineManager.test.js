@@ -1,36 +1,35 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("TontineManager", function () {
+  let tontine;
+  let president;
+  let member1;
+  let member2;
 
-  async function deployFixture() {
-    const [president, member1, member2] = await ethers.getSigners();
+  beforeEach(async function () {
+    [president, member1, member2] = await ethers.getSigners();
 
     const TontineManager = await ethers.getContractFactory("TontineManager");
-    const tontine = await TontineManager.deploy(
-      ethers.parseEther("1") // cotisation = 1 ETH
+
+    tontine = await TontineManager.deploy(
+      ethers.parseEther("1") // cotisation = 1 ETH (ethers v6)
     );
 
-    return { tontine, president, member1, member2 };
-  }
+    await tontine.waitForDeployment(); // ethers v6
+  });
 
   it("Doit définir correctement le président", async function () {
-    const { tontine, president } = await deployFixture();
     expect(await tontine.president()).to.equal(president.address);
   });
 
   it("Doit permettre au président d'ajouter des membres", async function () {
-    const { tontine, member1 } = await deployFixture();
-
     await tontine.addMember(member1.address);
     const firstMember = await tontine.members(0);
-
     expect(firstMember).to.equal(member1.address);
   });
 
   it("Un membre peut payer la cotisation", async function () {
-    const { tontine, member1 } = await deployFixture();
-
     await tontine.startCycle();
     await tontine.addMember(member1.address);
 
@@ -42,8 +41,6 @@ describe("TontineManager", function () {
   });
 
   it("Le président peut distribuer la tontine", async function () {
-    const { tontine, president, member1 } = await deployFixture();
-
     await tontine.startCycle();
     await tontine.addMember(member1.address);
 
@@ -51,7 +48,8 @@ describe("TontineManager", function () {
       value: ethers.parseEther("1"),
     });
 
-    await expect(tontine.connect(president).distribute())
-      .to.changeEtherBalance(member1, ethers.parseEther("1"));
+    await expect(() =>
+      tontine.connect(president).distribute()
+    ).to.changeEtherBalance(member1, ethers.parseEther("1"));
   });
 });
