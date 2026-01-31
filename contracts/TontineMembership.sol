@@ -105,6 +105,7 @@ struct Memberinfo {
     m.level = level;
     m.ipfsHash = ipfsHash;
     m.partsCount = uint8(memberTokens[to].length + 1);
+    
 
     _setTokenURI(tokenId, uri);
     memberTokens[to].push(tokenId);
