@@ -4,40 +4,43 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+// Énumérations partagées
 enum MemberLevel { STANDARD, PREMIUM, VIP }
 enum MemberStatus { ACTIVE, BENEFITED, SUSPENDED, EXCLUDED }
 
+// --- STRUCT DEPLACÉE ICI (Hors du contrat) ---
+struct MemberRegistration {
+    string name;
+    address avaliseur;
+    string ipfsHash;
+    string uri;
+    MemberLevel level;
+}
+
 contract TontineMembership is ERC721, ERC721URIStorage, AccessControl {
     bytes32 public constant PRESIDENT_ROLE = keccak256("PRESIDENT_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    
     uint256 private _tokenIdCounter;
 
-struct Memberinfo {
-    string name;             // Reste en haut (type dynamique)
-    uint256 montantCotisation;
-    uint256 caution;
-    address avaliseur;
-    
-    // --- Bloc optimisé (Packé dans 1 seul slot de 32 octets) ---
-    uint64 createdAt;        // Suffisant pour les 500 prochaines années
-    uint64 lastTransferAt;   // Idem
-    uint32 position;         // Jusqu'à 4 milliards de membres
-    uint16 penaltiesAccumulated; // Jusqu'à 65 535 pénalités
-    uint8 partsCount;        // Jusqu'à 255 parts
-    MemberStatus status;     // uint8 en interne
-    MemberLevel level;       // uint8 en interne
-    // ---------------------------------------------------------
-
-    string ipfsHash;
-    address[] previousOwners;
-}
+    struct Memberinfo {
+        string name;
+        uint256 montantCotisation;
+        uint256 caution;
+        address avaliseur;
+        uint64 createdAt;
+        uint64 lastTransferAt;
+        uint32 position;
+        uint16 penaltiesAccumulated;
+        uint8 partsCount;
+        MemberStatus status;
+        MemberLevel level;
+        string ipfsHash;
+        address[] previousOwners;
+    }
 
     mapping(uint256 => Memberinfo) public members;
     mapping(address => uint256[]) public memberTokens;
-    mapping(address => uint256) public avalisationCount;
-    mapping(address => address[]) public avalisedMembers;
-
-    uint8 public constant MAX_PARTS_PER_MEMBER = 2;
-    uint8 public constant MAX_AVALISATION_PER_MEMBER = 3;
 
     event MemberCreated(uint256 indexed tokenId, address indexed member, address indexed avaliseur, string name, MemberLevel level);
     event PositionUpdated(uint256 indexed tokenId, uint256 oldPosition, uint256 newPosition);
@@ -49,71 +52,74 @@ struct Memberinfo {
         _tokenIdCounter = 1;
     }
 
-    // ============ MODIFICATEURS ============
+    modifier onlyAdminOrManager() {
+        require(hasRole(PRESIDENT_ROLE, msg.sender) || hasRole(MANAGER_ROLE, msg.sender), "Not authorized");
+        _;
+    }
+
     modifier onlyValidToken(uint256 tokenId) {
         require(_ownerOf(tokenId) != address(0), "Token inexistant");
         _;
     }
 
-    // ============ FONCTIONS DE GESTION (AVALISATION) ============
+    // ============ FONCTIONS DE GESTION ============
 
-    function updatePosition(uint256 tokenId, uint32 newPosition) external onlyRole(PRESIDENT_ROLE) onlyValidToken(tokenId) {
+    function updatePosition(uint256 tokenId, uint32 newPosition) external onlyAdminOrManager onlyValidToken(tokenId) {
         uint32 oldPosition = members[tokenId].position;
         members[tokenId].position = newPosition;
         emit PositionUpdated(tokenId, oldPosition, newPosition);
     }
 
-    function markAsBenefited(uint256 tokenId) external onlyRole(PRESIDENT_ROLE) onlyValidToken(tokenId) {
+    function updateStatus(uint256 tokenId, MemberStatus newStatus) external onlyAdminOrManager onlyValidToken(tokenId) {
+        MemberStatus oldStatus = members[tokenId].status;
+        members[tokenId].status = newStatus;
+        emit MemberStatusChanged(tokenId, oldStatus, newStatus);
+    }
+
+    function markAsBenefited(uint256 tokenId) external onlyAdminOrManager onlyValidToken(tokenId) {
         MemberStatus oldStatus = members[tokenId].status;
         members[tokenId].status = MemberStatus.BENEFITED;
         emit MemberStatusChanged(tokenId, oldStatus, MemberStatus.BENEFITED);
     }
 
-    function addPenalty(uint256 tokenId, uint16 amount) external onlyRole(PRESIDENT_ROLE) onlyValidToken(tokenId) {
-        members[tokenId].penaltiesAccumulated += amount;
-    }
-
-    // ============ LOGIQUE DE TRANSFERT & NETTOYAGE ============
+    // ============ LOGIQUE DE MINT (MISE À JOUR) ============
 
     function mintMembership(
-    address to, 
-    string calldata name, 
-    address avaliseur, 
-    uint256 montantCotisation, 
-    MemberLevel level, 
-    uint256 caution, 
-    string calldata ipfsHash, 
-    string calldata uri
-) public onlyRole(PRESIDENT_ROLE) {
-    require(to != address(0), "Adresse invalide");
-    require(avaliseur != address(0), "Avaliseur requis");
-    require(avalisationCount[avaliseur] < MAX_AVALISATION_PER_MEMBER, "Limite d'avalisation");
+        address to, 
+        uint256 montantCotisation,
+        uint256 caution,
+        MemberRegistration calldata data // <-- On utilise la struct ici
+    ) public onlyAdminOrManager returns (uint256) {
+        require(to != address(0), "Invalid address");
 
-    uint256 tokenId = _tokenIdCounter++;
-    _safeMint(to, tokenId);
+        uint256 tokenId = _tokenIdCounter++;
+        _safeMint(to, tokenId);
 
-    // Attribution directe pour éviter de charger trop de variables sur la stack
-    Memberinfo storage m = members[tokenId];
-    m.name = name;
-    m.montantCotisation = montantCotisation;
-    m.caution = caution;
-    m.avaliseur = avaliseur;
-    m.createdAt = uint64(block.timestamp);
-    m.lastTransferAt = uint64(block.timestamp);
-    m.position = uint32(tokenId);
-    m.status = MemberStatus.ACTIVE;
-    m.level = level;
-    m.ipfsHash = ipfsHash;
-    m.partsCount = uint8(memberTokens[to].length + 1);
-    
+        Memberinfo storage m = members[tokenId];
+        m.name = data.name;
+        m.montantCotisation = montantCotisation;
+        m.caution = caution;
+        m.avaliseur = data.avaliseur;
+        m.createdAt = uint64(block.timestamp);
+        m.lastTransferAt = uint64(block.timestamp);
+        m.position = uint32(tokenId);
+        m.status = MemberStatus.ACTIVE;
+        m.level = data.level;
+        m.ipfsHash = data.ipfsHash;
+        m.partsCount = uint8(memberTokens[to].length + 1);
 
-    _setTokenURI(tokenId, uri);
-    memberTokens[to].push(tokenId);
-    avalisationCount[avaliseur] += 1;
-    avalisedMembers[avaliseur].push(to);
-    
-   emit MemberCreated(tokenId, to, m.avaliseur, m.name, m.level);
-}
+        _setTokenURI(tokenId, data.uri);
+        memberTokens[to].push(tokenId);
+        
+        emit MemberCreated(tokenId, to, data.avaliseur, data.name, data.level);
+        return tokenId;
+    }
+
+    // ============ LECTURE & OVERRIDES ============
+
+    function getTokensOf(address owner) external view returns (uint256[] memory) {
+        return memberTokens[owner];
+    }
 
     function _update(address to, uint256 tokenId, address auth) internal override(ERC721) returns (address) {
         address from = _ownerOf(tokenId);
@@ -137,30 +143,23 @@ struct Memberinfo {
         }
     }
 
-    // ============ LECTURE ============
-    function getTokensOf(address owner) external view returns (uint256[] memory) {
-        return memberTokens[owner];
-    }
-
-    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
-        return super.tokenURI(tokenId);
-    }
-
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721URIStorage, AccessControl) returns (bool) {
-        return super.supportsInterface(interfaceId);
-    }
+    function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) { return super.tokenURI(tokenId); }
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721URIStorage, AccessControl) returns (bool) { return super.supportsInterface(interfaceId); }
 }
+
+// ============ FACTORY MISE À JOUR ============
 
 contract TontineFactory {
     address[] public allTontines;
     event TontineCreated(address indexed tontineAddress, address indexed president, string name);
 
     function createTontine(string memory _name, string memory _symbol) public {
+        // Le créateur de la tontine devient l'admin (Président)
         TontineMembership newTontine = new TontineMembership(msg.sender, _name, _symbol);
         allTontines.push(address(newTontine));
         emit TontineCreated(address(newTontine), msg.sender, _name);
     }
-        // Fonction pour voir combien de tontines existent
+
     function getTontinesCount() public view returns (uint256) {
         return allTontines.length;
     }
