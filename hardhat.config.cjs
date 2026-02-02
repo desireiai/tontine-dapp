@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -9,8 +10,13 @@ module.exports = {
         enabled: true,
         runs: 200,
       },
-      // Indispensable pour tes erreurs "Stack too deep"
-      viaIR: true, 
+      viaIR: true,
+    },
+  },
+  networks: {
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
   },
 };

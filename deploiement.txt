@@ -1,0 +1,66 @@
+PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> npx hardhat run scripts/deploy.js
+--- Début du déploiement ---
+Compte deployer : 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+Déploiement de MockUSDT...
+MockUSDT déployé à : 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+Déploiement de TontineMembership...
+Membership déployé à : 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+
+Déploiement de AvalisationManager...
+AvalisationManager déployé à : 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+
+Déploiement de TontineManager...
+TontineManager déployé à : 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+
+Configuration des rôles...
+Rôles configurés avec succès !
+--- Déploiement terminé ---
+
+--- RÉCAPITULATIF DES ADRESSES ---
+┌─────────────┬──────────────────────────────────────────────┐
+│ (index)     │ Values                                       │
+├─────────────┼──────────────────────────────────────────────┤
+│ USDT        │ '0x5FbDB2315678afecb367f032d93F642f64180aa3' │
+│ Membership  │ '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' │
+│ Avalisation │ '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0' │
+│ Manager     │ '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9' │
+└─────────────┴──────────────────────────────────────────────┘
+
+
+deploiement sur sepolia
+
+PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> npx hardhat run scripts/deploy.js --network sepolia
+[dotenv@17.2.3] injecting env (3) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+--- Début du déploiement ---
+Compte deployer : 0x50f2D02022f1dabf45de2cbeba0b737B9c8E05F9
+
+Déploiement de MockUSDT...
+MockUSDT déployé à : 0xD4540b0cfecfC14564bB4168e1812B2E0FA41bD1
+
+Déploiement de TontineMembership...
+Membership déployé à : 0xC90eFA5637a4857cE0E138eCa3cbbc4569EfdF0A
+
+Déploiement de AvalisationManager...
+AvalisationManager déployé à : 0x5F8E6971289331bc697461dD24FA8Ae2f5c129b7
+
+Déploiement de TontineManager...
+TontineManager déployé à : 0x30b4b8945999053FfA10ea16f71b0825342f58da
+
+Configuration des rôles...
+Rôles configurés avec succès !
+--- Déploiement terminé ---
+
+--- RÉCAPITULATIF DES ADRESSES ---
+┌─────────────┬──────────────────────────────────────────────┐
+│ (index)     │ Values                                       │
+├─────────────┼──────────────────────────────────────────────┤
+│ USDT        │ '0xD4540b0cfecfC14564bB4168e1812B2E0FA41bD1' │
+│ Membership  │ '0xC90eFA5637a4857cE0E138eCa3cbbc4569EfdF0A' │
+│ Avalisation │ '0x5F8E6971289331bc697461dD24FA8Ae2f5c129b7' │
+│ Manager     │ '0x30b4b8945999053FfA10ea16f71b0825342f58da' │
+└─────────────┴──────────────────────────────────────────────┘
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76
+PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> 
