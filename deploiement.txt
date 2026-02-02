@@ -64,3 +64,57 @@ Rôles configurés avec succès !
 └─────────────┴──────────────────────────────────────────────┘
 Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76
 PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> 
+
+
+test de flux coverage
+
+PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> npx hardhat coverage
+[dotenv@17.2.3] injecting env (3) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+
+Version
+=======
+> solidity-coverage: v0.8.17
+
+Instrumenting for coverage...
+=============================
+
+> AvalisationManager.sol
+> MockUSDT.sol
+> TontineManager.sol
+> TontineMembership.sol
+
+Compilation:
+============
+
+Compiled 31 Solidity files successfully (evm target: paris).
+
+Network Info
+============
+> HardhatEVM: v2.28.4
+> network:    hardhat
+
+
+
+  Ma Plateforme de Tontine - Membership
+    ✔ Devrait permettre au Président de minter un membre
+
+  Système de Tontine - Test de Flux Logique
+    ✔ Devrait dérouler 2 cycles complets avec retenue à la source (267ms)
+
+
+  2 passing (515ms)
+
+-------------------------|----------|----------|----------|----------|----------------|
+File                     |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+-------------------------|----------|----------|----------|----------|----------------|
+ contracts\              |    72.32 |    45.71 |    67.65 |    76.43 |                |
+  AvalisationManager.sol |    62.86 |    42.31 |    72.73 |    65.96 |... 8,79,81,115 |
+  MockUSDT.sol           |       75 |      100 |       75 |       75 |             37 |
+  TontineManager.sol     |      100 |    66.67 |      100 |      100 |                |
+  TontineMembership.sol  |    51.43 |    34.62 |       50 |    62.26 |... 159,160,164 |
+-------------------------|----------|----------|----------|----------|----------------|
+All files                |    72.32 |    45.71 |    67.65 |    76.43 |                |
+-------------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+PS C:\Users\yao-o\Documents\5BLOC\tontine-dapp> 
